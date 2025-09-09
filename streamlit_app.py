@@ -33,8 +33,8 @@ THEMES = {
     },
     "Light": {
         "PRIMARY_BG": "#f7f9fc",
-        "PANEL_BG":   "#ffffff",
-        "CARD_BG":    "#ffffff",
+        "PANEL_BG":   "#0d2a5a",
+        "CARD_BG":    "#0f326e",
         "TEXT":       "#eaf2ff",
         "ACCENT":     "#7c3aed",
         "ACCENT_RED": "#dc2626",
@@ -769,4 +769,5 @@ cdown2.download_button("Export (Excel)", data=bio.getvalue(),
                        file_name="nest_dashboard_filtered.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        use_container_width=True)
+
 
