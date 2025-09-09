@@ -35,7 +35,7 @@ THEMES = {
         "PRIMARY_BG": "#f7f9fc",
         "PANEL_BG":   "#ffffff",
         "CARD_BG":    "#ffffff",
-        "TEXT":       "#000000",  # Changed to pure black
+        "TEXT":       "#000000",
         "ACCENT":     "#7c3aed",
         "ACCENT_RED": "#dc2626",
         "ACCENT_GREEN": "#16a34a",
@@ -325,21 +325,33 @@ def grouped_bar(df, x, series, title):
         template=PLOTLY_TPL,
         barmode="group", height=340, margin=dict(l=10,r=10,t=40,b=10),
         plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
-        font=dict(color=TEXT, size=12), title=dict(text=title, x=0.02, y=0.98, font=dict(size=14))
+        font=dict(color='#000000' if theme_choice == 'Light' else TEXT, size=12),
+        title=dict(text=title, x=0.02, y=0.98, font=dict(size=14, color='#000000' if theme_choice == 'Light' else TEXT))
     )
-    fig.update_xaxes(showgrid=False, zeroline=False)
-    fig.update_yaxes(gridcolor=GRID_COLOR)
+    fig.update_xaxes(
+        showgrid=False, zeroline=False,
+        tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
+    fig.update_yaxes(
+        gridcolor=GRID_COLOR,
+        tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+        title_font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
     return fig
 
 def donut(labels, values, title):
     fig = go.Figure(go.Pie(labels=labels, values=values, hole=0.58,
                            textinfo="value+percent", sort=False))
-    fig.update_traces(marker=dict(line=dict(color=PANEL_BG, width=2)))
+    fig.update_traces(
+        marker=dict(line=dict(color=PANEL_BG, width=2)),
+        textfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
     fig.update_layout(
         template=PLOTLY_TPL,
         height=320, margin=dict(l=10,r=10,t=40,b=10),
         plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
-        font=dict(color=TEXT), title=dict(text=title, x=0.5, y=0.98, font=dict(size=14))
+        font=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+        title=dict(text=title, x=0.5, y=0.98, font=dict(size=14, color='#000000' if theme_choice == 'Light' else TEXT))
     )
     return fig
 
@@ -439,9 +451,20 @@ perf_state = (filt.assign(pos=(filt["growth_pct"]>0).astype(int))
               .sort_values("positive", ascending=False))
 if not perf_state.empty:
     fig_perf = px.bar(perf_state, x="state", y="positive", title="OVERALL PERFORMANCE BY STATE")
-    fig_perf.update_layout(template=PLOTLY_TPL, height=340, margin=dict(l=10,r=10,t=40,b=10),
-                           plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG, font=dict(color=TEXT))
-    fig_perf.update_xaxes(showgrid=False); fig_perf.update_yaxes(gridcolor=GRID_COLOR)
+    fig_perf.update_layout(
+        template=PLOTLY_TPL, height=340, margin=dict(l=10,r=10,t=40,b=10),
+        plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
+        font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
+    fig_perf.update_xaxes(
+        showgrid=False,
+        tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
+    fig_perf.update_yaxes(
+        gridcolor=GRID_COLOR,
+        tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+        title_font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
     cC2.plotly_chart(fig_perf, use_container_width=True)
 
 st.markdown("<br/>", unsafe_allow_html=True)
@@ -471,9 +494,17 @@ def stacked_perf(df: pd.DataFrame, by: str, title: str):
     fig.update_layout(
         template=PLOTLY_TPL, barmode="stack", height=350, title=title,
         plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG, margin=dict(l=10,r=10,t=40,b=10),
-        font=dict(color=TEXT), legend=dict(orientation="h", y=1.1)
+        font=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+        legend=dict(orientation="h", y=1.1, font=dict(color='#000000' if theme_choice == 'Light' else TEXT))
     )
-    fig.update_yaxes(gridcolor=GRID_COLOR)
+    fig.update_yaxes(
+        gridcolor=GRID_COLOR,
+        tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+        title_font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
+    fig.update_xaxes(
+        tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+    )
     return fig
 
 p1, p2, p3 = st.columns(3)
@@ -490,10 +521,24 @@ perf_df = pd.DataFrame({"Status":["Achieved","Not Achieved","New Company"], "Cou
 perf_fig = px.bar(perf_df, x="Status", y="Count", text="Count",
                   color="Status",
                   color_discrete_map={"Achieved":ACCENT_BLUE,"Not Achieved":ACCENT_RED,"New Company":ACCENT_PURPLE})
-perf_fig.update_traces(textposition="outside")
-perf_fig.update_layout(template=PLOTLY_TPL, height=320, title="OVERALL PERFORMANCE",
-                       plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
-                       font=dict(color=TEXT), margin=dict(l=10,r=10,t=40,b=10))
+perf_fig.update_traces(
+    textposition="outside",
+    textfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
+perf_fig.update_layout(
+    template=PLOTLY_TPL, height=320, title="OVERALL PERFORMANCE",
+    plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
+    font=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+    margin=dict(l=10,r=10,t=40,b=10)
+)
+perf_fig.update_xaxes(
+    tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
+perf_fig.update_yaxes(
+    gridcolor=GRID_COLOR,
+    tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+    title_font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
 p2.plotly_chart(perf_fig, use_container_width=True)
 
 p3.plotly_chart(stacked_perf(filt, "state", "OVERALL PERFORMANCE BY STATE"), use_container_width=True)
@@ -519,10 +564,24 @@ jobs_perf = pd.DataFrame({
 jp_fig = px.bar(jobs_perf, x="Status", y="Count", text="Count",
                 color="Status",
                 color_discrete_map={"Achieved":ACCENT_GREEN,"Not Achieved":ACCENT_RED})
-jp_fig.update_traces(textposition="outside")
-jp_fig.update_layout(template=PLOTLY_TPL, height=320, title="OVERALL PERFORMANCE (JOBS)",
-                     plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
-                     margin=dict(l=10,r=10,t=40,b=10), font=dict(color=TEXT))
+jp_fig.update_traces(
+    textposition="outside",
+    textfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
+jp_fig.update_layout(
+    template=PLOTLY_TPL, height=320, title="OVERALL PERFORMANCE (JOBS)",
+    plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
+    margin=dict(l=10,r=10,t=40,b=10),
+    font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
+jp_fig.update_xaxes(
+    tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
+jp_fig.update_yaxes(
+    gridcolor=GRID_COLOR,
+    tickfont=dict(color='#000000' if theme_choice == 'Light' else TEXT),
+    title_font=dict(color='#000000' if theme_choice == 'Light' else TEXT)
+)
 r2.plotly_chart(jp_fig, use_container_width=True)
 r3.plotly_chart(stacked_perf(filt, "state", "OVERALL PERFORMANCE BY STATE (JOBS)"), use_container_width=True)
 
