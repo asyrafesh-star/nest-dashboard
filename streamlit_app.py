@@ -33,9 +33,9 @@ THEMES = {
     },
     "Light": {
         "PRIMARY_BG": "#f7f9fc",
-        "PANEL_BG":   "#0d2a5a",
-        "CARD_BG":    "#0f326e",
-        "TEXT":       "#eaf2ff",
+        "PANEL_BG":   "#ffffff",
+        "CARD_BG":    "#ffffff",
+        "TEXT":       "#000000",
         "ACCENT":     "#7c3aed",
         "ACCENT_RED": "#dc2626",
         "ACCENT_GREEN": "#16a34a",
@@ -82,6 +82,7 @@ st.markdown(
     .stApp {{ background-color: {PRIMARY_BG}; }}
     .stSidebar {{ background-color: { '#ffffff' if theme_choice == 'Light' else PRIMARY_BG }; }}
     .block-container {{ padding-top: .8rem; padding-bottom: 2rem; }}
+    .st-plotly-chart {{ background-color: { '#ffffff' if theme_choice == 'Light' else PANEL_BG }; }}
     h1,h2,h3,h4,h5,p,span,div,li,th,td,label {{ color: {TEXT} !important; }}
     .dash-card {{
         background: {CARD_BG if theme_choice == 'Dark' else COLORFUL_GRADS[0]};
@@ -769,5 +770,3 @@ cdown2.download_button("Export (Excel)", data=bio.getvalue(),
                        file_name="nest_dashboard_filtered.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        use_container_width=True)
-
-
