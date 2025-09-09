@@ -1,389 +1,466 @@
+# streamlit_app.py
 import io
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 
-st.set_page_config(page_title="Business Analytics Dashboard", layout="wide")
+st.set_page_config(page_title="NEST DASHBOARD 2024", layout="wide")
 
-# =========================
-# Helpers & header mapping
-# =========================
+# ===============  THEME / STYLES  ===============
+PRIMARY_BG = "#0c2340"  # navy
+PANEL_BG = "#0d2a5a"
+CARD_BG = "#0f326e"
+TEXT = "#eaf2ff"
+ACCENT = "#ffcc00"
+ACCENT_RED = "#e74c3c"
+ACCENT_GREEN = "#27ae60"
+ACCENT_BLUE = "#1f78ff"
+ACCENT_PURPLE = "#9b59b6"
 
-# Map many possible header variants -> canonical keys (to match your HTML version)
+st.markdown(
+    f"""
+    <style>
+    .stApp {{ background-color: {PRIMARY_BG}; }}
+    .block-container {{ padding-top: 0.8rem; padding-bottom: 2rem; }}
+    h1,h2,h3,h4,h5,p,span,div,li,th,td,label {{
+        color: {TEXT} !important;
+    }}
+    .dash-card {{
+        background: linear-gradient(180deg, {CARD_BG} 0%, {PANEL_BG} 100%);
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 12px; padding: 14px 16px; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    }}
+    .kpi-num {{ font-weight: 800; font-size: 36px; color: {ACCENT}; }}
+    .kpi-label {{ color: #b9c7e6; font-size: 12px; letter-spacing: .08em; }}
+    .kpi-stack {{ text-align:center; }}
+    .panel-title {{ font-weight:700; letter-spacing:.08em; font-size:12px; color:#b9c7e6; }}
+    .headline {{ font-size:28px; font-weight:900; color:#fff; letter-spacing:.04em; }}
+    .subtabs span {{ color:#d7e3ff; }}
+    .right-panel {{ background: {PANEL_BG}; border-radius: 12px; border:1px solid rgba(255,255,255,.06); padding:16px; }}
+    .pill {{
+        background: rgba(255,255,255,.08); padding:4px 8px; border-radius: 999px;
+        font-size: 11px; color:#d7e3ff; border:1px solid rgba(255,255,255,.1);
+    }}
+    .chip-ok {{ background: rgba(39,174,96,.15); color:#8ff3ba; border-color: rgba(39,174,96,.35);} }
+    .chip-bad {{ background: rgba(231,76,60,.15); color:#ffb1a7; border-color: rgba(231,76,60,.35);} }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ===============  HEADER  ===============
+st.markdown(
+    """
+    <div style="background:#081733;border-radius:12px;border:1px solid rgba(255,255,255,.08);
+         padding:14px 18px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div class="headline">NEST DASHBOARD 2024</div>
+                <div class="subtabs">
+                    <span>STATE</span> &nbsp;|&nbsp; <span>INDUSTRY</span> &nbsp;|&nbsp; <span>GROUP</span>
+                </div>
+            </div>
+            <div>
+                <span class="pill">Overall</span>
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ===============  COLUMN MAP (flexible to Book2/Master)  ===============
 HEADER_MAP: Dict[str, List[str]] = {
-    "companyName": ["COMPANY_NAME", "Company Name", "COMPANY"],
-    "state": ["STATE", "Negeri", "NEGERI", "State"],
-    "district": ["DISTRICT", "Daerah", "DAERAH", "District"],
-    "registrationNumber": ["REGISTRATION_NUMBER_SSM", "SSM", "Registration Number"],
-    "businessType": ["BUSINESS_TYPE", "TYPE_OF_BUSINESS", "Business Type"],
-    "industry": ["INDUSTRY", "SECTOR", "Industry"],
-    "basket": ["BASKET"],
+    "company": ["COMPANY_NAME", "Company Name", "COMPANY"],
+    "state": ["STATE", "Negeri"],
+    "industry": ["INDUSTRY", "Sector"],
     "group": ["GROUP"],
-    "ethnicity": ["ETHNICITY"],
-
-    # Revenues
-    "baselineRevenue2023": ["BASELINE_REVENUE_2023", "Revenue 2023 Baseline"],
-    "baselineRevenue2024": ["BASELINE_REVENUE_2024", "Revenue 2024 Baseline"],
-    "projection2024": ["REVENUE_2024_PROJECTION", "Projection 2024"],
-    "actual2024": ["REVENUE_2024_UPDATE", "ACTUAL_2024", "Actual 2024"],
-    "projection2025": ["REVENUE_2025_PROJECTION", "Projection 2025"],
-
-    # Jobs / manpower
-    "baselineJobCreation": ["BASELINE_MANPOWER_2024", "BASELINE_MANPOWER_2023", "Baseline Job Creation"],
-    "projectionJobCreation2024": ["MANPOWER_2024_PROJECTION", "GROWTH_JOB_CREATION_2024"],
-    "actualJobCreation": ["ACTUAL_GROWTH_JOB_CREATION_2024", "MANPOWER_2024_UPDATE"],
-    "projectionJobCreation2025": ["MANPOWER_2025_PROJECTION"],
-
-    # Status & achievements
-    "status": ["STATUS", "MD_STATUS_COMPANIES", "Status"],
-    "salesAchieved": ["SELF_DECLARATION_2024"],
-    "jobsAchieved": ["PERCENTAGE_JOB_CREATION_2024", "JOBS_ACHIEVED_2024"],
-    # Optional sales growth % to infer achievements
-    "growthSalesPct2024": ["PERCENTAGE_SALES_2024", "% SALES 2024", "PERC_SALES_2024"],
-    "growthSalesRM2024": ["GROWTH_SALES_2024"],
+    "tc_member": ["TC_MEMBER", "KAM", "PIC", "TC"],
+    # Sales
+    "rev_baseline": ["BASELINE_REVENUE_2024", "Revenue 2024 Baseline"],
+    "rev_projection": ["REVENUE_2024_PROJECTION", "Projection 2024"],
+    "rev_actual": ["REVENUE_2024_UPDATE", "Actual 2024", "ACTUAL_2024"],
+    "rev_baseline_prev": ["BASELINE_REVENUE_2023", "Revenue 2023"],
+    # Jobs / Manpower
+    "jobs_baseline": ["BASELINE_MANPOWER_2024"],
+    "jobs_projection": ["MANPOWER_2024_PROJECTION"],
+    "jobs_update": ["MANPOWER_2024_UPDATE"],
+    "jobs_actual_growth": ["ACTUAL_GROWTH_JOB_CREATION_2024"],  # explicit growth
+    # status / flags
+    "sale_status": ["SELF_DECLARATION_2024", "SALE_STATUS"],
+    "job_status": ["PERCENTAGE_JOB_CREATION_2024", "JOB_STATUS"],
 }
 
-CANON_COLS = list(HEADER_MAP.keys())
+def pick_col(df: pd.DataFrame, aliases: List[str]):
+    lowers = {c.lower().strip(): c for c in df.columns}
+    for a in aliases:
+        hit = lowers.get(a.lower().strip())
+        if hit:
+            return hit
+    return None
 
-def _to_num(v):
-    if v is None or (isinstance(v, float) and pd.isna(v)):
+def num(v):
+    if v is None or (isinstance(v, float) and np.isnan(v)):
         return 0.0
     try:
         return float(str(v).replace(",", "").strip())
     except Exception:
         return 0.0
 
-def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-    # create lowercase->original map for easy matching
-    lowered = {c.lower().strip(): c for c in df.columns}
-    def pick(aliases):
-        for a in aliases:
-            c = lowered.get(a.lower().strip())
-            if c is not None:
-                return c
-        return None
-
-    out = pd.DataFrame()
-    for canon, aliases in HEADER_MAP.items():
-        src = pick(aliases)
-        if src is not None:
-            out[canon] = df[src]
-        else:
-            out[canon] = pd.NA
-
-    # Coerce numerics
-    for c in [
-        "baselineRevenue2023", "baselineRevenue2024", "projection2024", "actual2024", "projection2025",
-        "baselineJobCreation", "projectionJobCreation2024", "actualJobCreation", "projectionJobCreation2025",
-        "growthSalesPct2024", "growthSalesRM2024",
-    ]:
-        out[c] = out[c].map(_to_num)
-
-    # Strings (clean)
-    for c in ["companyName", "state", "district", "registrationNumber", "businessType", "industry", "basket", "group", "ethnicity", "status"]:
-        out[c] = out[c].astype("string").fillna("").str.strip()
-
-    # Achievements inference (sales)
-    sales_decl = out["salesAchieved"].astype("string").str.lower().fillna("")
-    sales_flag = sales_decl.isin(["achieved", "yes", "y", "true", "1"])
-    sales_flag = sales_flag | (out["growthSalesRM2024"] > 0) | (out["growthSalesPct2024"] > 0)
-    out["salesAchieved"] = sales_flag
-
-    # Achievements inference (jobs): prefer explicit %, else positive actualJobCreation
-    jobs_pct_present = ~pd.isna(out["jobsAchieved"]) & (out["jobsAchieved"].astype("string") != "")
-    # If there is a numeric percentage column mapped into jobsAchieved by mistake, try to coerce
-    try:
-        jobs_pct_numeric = pd.to_numeric(out["jobsAchieved"], errors="coerce").fillna(0)
-    except Exception:
-        jobs_pct_numeric = pd.Series([0] * len(out))
-    out["jobsAchieved"] = (jobs_pct_numeric > 0) | (out["actualJobCreation"] > 0)
-
-    # Better "actualJobCreation": if empty but we have manpower baseline & update, compute delta
-    need_delta = (out["actualJobCreation"] == 0) & (out["baselineJobCreation"].notna())
-    # Try to locate 2024 update column from original df if not already mapped
-    mp_update_candidates = ["MANPOWER_2024_UPDATE", "Manpower 2024 Update"]
-    for cand in mp_update_candidates:
-        if cand in df.columns:
-            delta = df[cand].map(_to_num) - out["baselineJobCreation"].map(_to_num)
-            out.loc[need_delta, "actualJobCreation"] = delta[need_delta]
-            break
-
-    # Defaults
-    out["status"] = out["status"].replace({"<NA>": ""}).fillna("")
-    out.loc[out["status"] == "", "status"] = "Active"
-
-    return out
-
-def make_template_bytes() -> bytes:
-    # Build an Excel template with canonical headers + sample rows
-    template_cols = [
-        "Company Name","State","District","Registration Number","Business Type","Industry","Basket","Group","Ethnicity",
-        "Baseline Revenue 2023","Baseline Revenue 2024","Projection 2024","Actual 2024","Projection 2025",
-        "Baseline Job Creation","Projection Job Creation 2024","Actual Job Creation","Projection Job Creation 2025",
-        "Status","Sales Achieved 2024","Jobs Achieved 2024"
-    ]
-    sample = [
-        ["Tech Solutions Sdn Bhd","Selangor","Petaling Jaya","SSM123456","SME","Technology","A","Group A","Malay",
-         2100000,2300000,2500000,2650000,2800000,40,45,48,52,"Active","Achieved","Achieved"],
-        ["Manufacturing Plus","Penang","Georgetown","SSM987654","MNC","Manufacturing","B","Group B","Chinese",
-         7500000,8000000,8200000,8500000,9000000,110,120,125,135,"Active","Achieved","Achieved"],
-    ]
-    df = pd.DataFrame(sample, columns=template_cols)
-    bio = io.BytesIO()
-    with pd.ExcelWriter(bio, engine="openpyxl") as xw:
-        df.to_excel(xw, index=False, sheet_name="NEST Template")
-    return bio.getvalue()
-
-# =========================
-# Sidebar: data IO
-# =========================
-st.sidebar.title("📊 Data Management")
-
-# Download Template
-st.sidebar.download_button(
-    "📥 Download Excel Template",
-    data=make_template_bytes(),
-    file_name="NEST_Template.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    help="Template with correct columns & sample rows"
-)
-
-uploaded = st.sidebar.file_uploader("📁 Upload Excel/CSV", type=["xlsx", "xls", "csv"], help="Upload Book2 or any dataset")
-page_size = st.sidebar.selectbox("Rows per page", [10, 20, 50, 100], index=1)
-
 @st.cache_data(show_spinner=False)
-def load_any(file) -> pd.DataFrame:
+def load_any(file):
     if file.name.lower().endswith(".csv"):
         return pd.read_csv(file)
     return pd.read_excel(file, engine="openpyxl")
 
-# Seed sample (so the UI is not empty if no file yet)
-seed = pd.DataFrame([
-    dict(
-        COMPANY_NAME="Tech Solutions Sdn Bhd", STATE="Selangor", DISTRICT="Petaling Jaya",
-        REGISTRATION_NUMBER_SSM="SSM123456", BUSINESS_TYPE="SME", INDUSTRY="Technology",
-        BASKET="A", GROUP="Group A", ETHNICITY="Malay",
-        BASELINE_REVENUE_2023=2_100_000, BASELINE_REVENUE_2024=2_300_000,
-        REVENUE_2024_PROJECTION=2_500_000, REVENUE_2024_UPDATE=2_650_000, REVENUE_2025_PROJECTION=2_800_000,
-        BASELINE_MANPOWER_2024=40, MANPOWER_2024_PROJECTION=45, ACTUAL_GROWTH_JOB_CREATION_2024=48, MANPOWER_2025_PROJECTION=52,
-        STATUS="Active", SELF_DECLARATION_2024="Achieved"
-    ),
-    dict(
-        COMPANY_NAME="Manufacturing Plus", STATE="Penang", DISTRICT="Georgetown",
-        REGISTRATION_NUMBER_SSM="SSM987654", BUSINESS_TYPE="MNC", INDUSTRY="Manufacturing",
-        BASKET="B", GROUP="Group B", ETHNICITY="Chinese",
-        BASELINE_REVENUE_2023=7_500_000, BASELINE_REVENUE_2024=8_000_000,
-        REVENUE_2024_PROJECTION=8_200_000, REVENUE_2024_UPDATE=8_500_000, REVENUE_2025_PROJECTION=9_000_000,
-        BASELINE_MANPOWER_2024=110, MANPOWER_2024_PROJECTION=120, ACTUAL_GROWTH_JOB_CREATION_2024=125, MANPOWER_2025_PROJECTION=135,
-        STATUS="Active", SELF_DECLARATION_2024="Achieved"
-    ),
-    dict(
-        COMPANY_NAME="Retail Express", STATE="Kuala Lumpur", DISTRICT="Bukit Bintang",
-        REGISTRATION_NUMBER_SSM="SSM456789", BUSINESS_TYPE="SME", INDUSTRY="Retail",
-        BASKET="C", GROUP="Group A", ETHNICITY="Indian",
-        BASELINE_REVENUE_2023=1_900_000, BASELINE_REVENUE_2024=1_800_000,
-        REVENUE_2024_PROJECTION=2_000_000, REVENUE_2024_UPDATE=1_750_000, REVENUE_2025_PROJECTION=1_900_000,
-        BASELINE_MANPOWER_2024=35, MANPOWER_2024_PROJECTION=32, ACTUAL_GROWTH_JOB_CREATION_2024=30, MANPOWER_2025_PROJECTION=33,
-        STATUS="Review", SELF_DECLARATION_2024="Not"
-    ),
-])
+# ===============  SIDEBAR: Template + Upload  ===============
+with st.sidebar:
+    st.markdown("### 📦 Data")
+    upl = st.file_uploader("Upload Excel/CSV", type=["xlsx", "xls", "csv"])
 
-if uploaded is not None:
-    raw_df = load_any(uploaded)
+    # Download template
+    def template_bytes():
+        cols = [
+            "COMPANY_NAME","STATE","INDUSTRY","GROUP","TC_MEMBER",
+            "BASELINE_REVENUE_2023","BASELINE_REVENUE_2024","REVENUE_2024_PROJECTION","REVENUE_2024_UPDATE",
+            "BASELINE_MANPOWER_2024","MANPOWER_2024_PROJECTION","MANPOWER_2024_UPDATE","ACTUAL_GROWTH_JOB_CREATION_2024",
+            "SELF_DECLARATION_2024","PERCENTAGE_JOB_CREATION_2024"
+        ]
+        sample = [
+            ["Tech Solutions","SELANGOR","SERVICES","3A","DATIN SHARIDEE",
+             1800000,2300000,2500000,2650000,40,45,48,8,"Achieved",25],
+            ["BestMart","PULAU PINANG","MANUFACTURING","2","EN FAUZAN",
+             1200000,1500000,1650000,1600000,20,25,26,6,"Not Achieved",10],
+        ]
+        bio = io.BytesIO()
+        df = pd.DataFrame(sample, columns=cols)
+        with pd.ExcelWriter(bio, engine="openpyxl") as xw:
+            df.to_excel(xw, index=False, sheet_name="NEST Data")
+        return bio.getvalue()
+
+    st.download_button(
+        "📥 Download Excel Template",
+        data=template_bytes(),
+        file_name="NEST_Template.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
+
+# ===============  DATA (seed if no upload)  ===============
+if upl is not None:
+    raw = load_any(upl)
 else:
-    raw_df = seed
-
-df = normalize_columns(raw_df)
-
-# =========================
-# Title & filters
-# =========================
-st.title("🌐 Business Analytics Dashboard")
-
-with st.expander("ℹ️ How this works", expanded=False):
-    st.write(
-        "- Upload **Excel/CSV**. We normalize your column names (like `STATE`, `INDUSTRY`, "
-        "`REVENUE_2024_UPDATE`, `ACTUAL_GROWTH_JOB_CREATION_2024`, etc.) into a standard schema.\n"
-        "- Filters & charts update live.\n"
-        "- Download filtered data as CSV/Excel."
+    # minimal seed to show layout
+    raw = pd.DataFrame(
+        [
+            ["Tech Solutions","SELANGOR","SERVICES","3A","DATIN SHARIDEE",1800000,2300000,2500000,2650000,40,45,48,8,"Achieved",25],
+            ["BestMart","PULAU PINANG","MANUFACTURING","2","EN FAUZAN",1200000,1500000,1650000,1600000,20,25,26,6,"Not Achieved",10],
+            ["Swift Bridge","PERAK","AGRIBUSINESS","1","PN SURIALA", 800000,1100000,1250000,1490000,10,13,17,9,"Achieved",40],
+            ["HealthCare Ideal","PULAU PINANG","SERVICES","3A","EM FIRDAUS",2000000,2600000,3000000,6240000,60,75,119,59,"Achieved",65],
+        ],
+        columns=[
+            "COMPANY_NAME","STATE","INDUSTRY","GROUP","TC_MEMBER",
+            "BASELINE_REVENUE_2023","BASELINE_REVENUE_2024","REVENUE_2024_PROJECTION","REVENUE_2024_UPDATE",
+            "BASELINE_MANPOWER_2024","MANPOWER_2024_PROJECTION","MANPOWER_2024_UPDATE","ACTUAL_GROWTH_JOB_CREATION_2024",
+            "SELF_DECLARATION_2024","PERCENTAGE_JOB_CREATION_2024",
+        ],
     )
 
-# Filters
-c1, c2, c3, c4 = st.columns(4)
-states = sorted([s for s in df["state"].dropna().unique() if str(s).strip() != ""])
-industries = sorted([s for s in df["industry"].dropna().unique() if str(s).strip() != ""])
-btypes = sorted([s for s in df["businessType"].dropna().unique() if str(s).strip() != ""])
-groups = sorted([s for s in df["group"].dropna().unique() if str(s).strip() != ""])
+# normalize columns
+norm = pd.DataFrame()
+for key, aliases in HEADER_MAP.items():
+    col = pick_col(raw, aliases)
+    norm[key] = raw[col] if col else pd.NA
 
-sel_state = c1.selectbox("State", ["All"] + states, index=0)
-sel_ind = c2.selectbox("Industry", ["All"] + industries, index=0)
-sel_bt = c3.selectbox("Business Type", ["All"] + btypes, index=0)
-sel_grp = c4.selectbox("Group", ["All"] + groups, index=0)
+# ensure strings
+for c in ["company","state","industry","group","tc_member","sale_status"]:
+    norm[c] = norm[c].astype("string").fillna("")
 
-fdf = df.copy()
-if sel_state != "All":
-    fdf = fdf[fdf["state"] == sel_state]
-if sel_ind != "All":
-    fdf = fdf[fdf["industry"] == sel_ind]
-if sel_bt != "All":
-    fdf = fdf[fdf["businessType"] == sel_bt]
-if sel_grp != "All":
-    fdf = fdf[fdf["group"] == sel_grp]
+# numeric fix
+for c in ["rev_baseline_prev","rev_baseline","rev_projection","rev_actual",
+          "jobs_baseline","jobs_projection","jobs_update","jobs_actual_growth","job_status"]:
+    if c in norm:
+        norm[c] = norm[c].apply(num)
 
-# =========================
-# KPIs
-# =========================
-def human_rm(n: float) -> str:
-    if n >= 1e9:
-        return f"RM {n/1e9:.2f}B"
-    if n >= 1e6:
-        return f"RM {n/1e6:.1f}M"
-    if n >= 1e3:
-        return f"RM {n/1e3:.1f}K"
-    return f"RM {n:,.0f}"
+# derive actual jobs if not explicit
+if norm["jobs_actual_growth"].fillna(0).sum() == 0:
+    # try delta update-baseline
+    norm["jobs_actual_growth"] = (norm["jobs_update"].apply(num) - norm["jobs_baseline"].apply(num)).clip(lower=0)
 
-total_companies = len(fdf)
-total_revenue = float((fdf["actual2024"].replace(pd.NA, 0).map(_to_num)) \
-                      .where(lambda s: s > 0, other=fdf["baselineRevenue2024"].map(_to_num)).sum())
-total_jobs = float(fdf["actualJobCreation"].map(_to_num).sum())
-baseline_rev = float(fdf["baselineRevenue2024"].map(_to_num).sum())
-growth_pct = ((total_revenue - baseline_rev) / baseline_rev * 100) if baseline_rev > 0 else 0.0
+# growth %
+norm["growth_pct"] = np.where(
+    norm["rev_baseline"].apply(num) > 0,
+    (norm["rev_actual"].apply(num) - norm["rev_baseline"].apply(num)) / norm["rev_baseline"].apply(num) * 100,
+    0,
+)
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("🏢 Total Companies", f"{total_companies:,}")
-m2.metric("💰 Total Revenue 2024", human_rm(total_revenue))
-m3.metric("👥 Jobs Created (2024)", f"{int(total_jobs):,}")
-m4.metric("📈 Growth Rate", f"{growth_pct:.1f}%")
+# ===============  TOP FILTERS ===============
+fc1, fc2, fc3, fc4 = st.columns([1.5,1.5,1.2,1.2])
+with fc1:
+    states = sorted(norm["state"].dropna().unique().tolist())
+    f_state = st.multiselect("STATE", states, default=states)
+with fc2:
+    inds = sorted(norm["industry"].dropna().unique().tolist())
+    f_ind = st.multiselect("INDUSTRY", inds, default=inds)
+with fc3:
+    grps = sorted(norm["group"].dropna().unique().tolist())
+    f_grp = st.multiselect("GROUP", grps, default=grps[:3] if len(grps)>3 else grps)
+with fc4:
+    tcs = sorted(norm["tc_member"].dropna().unique().tolist())
+    f_tc = st.multiselect("TC MEMBER", tcs, default=tcs)
 
-st.markdown("---")
+filt = norm.copy()
+if f_state: filt = filt[filt["state"].isin(f_state)]
+if f_ind:   filt = filt[filt["industry"].isin(f_ind)]
+if f_grp:   filt = filt[filt["group"].isin(f_grp)]
+if f_tc:    filt = filt[filt["tc_member"].isin(f_tc)]
 
-# =========================
-# Charts
-# =========================
-cc1, cc2 = st.columns(2)
+# ===============  KPI ROW  ===============
+k1, k2, k3, k4, k5, k6 = st.columns([1.1,1.6,1.6,1.6,1.4,1.6])
 
-if not fdf.empty:
-    # Revenue by State
-    rev_state = (
-        fdf.assign(
-            revenue=fdf["actual2024"].where(fdf["actual2024"] > 0, fdf["baselineRevenue2024"]).map(_to_num)
-        )
-        .groupby("state", as_index=False)["revenue"].sum()
-        .sort_values("revenue", ascending=False)
+def kpi_card(container, label, value_html):
+    with container:
+        st.markdown(f"""
+        <div class="dash-card kpi-stack">
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-num">{value_html}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+total_company = len(filt)
+base_sales = float(filt["rev_baseline"].apply(num).sum())
+base_jobs = int(filt["jobs_baseline"].apply(num).sum())
+total_growth_sale = float((filt["rev_actual"].apply(num) - filt["rev_baseline"].apply(num)).sum())
+avg_growth_pct = float(filt["growth_pct"].replace([np.inf, -np.inf], 0).fillna(0).mean())
+total_new_jobs = int(filt["jobs_actual_growth"].apply(num).sum())
+avg_job_pct = float(
+    np.where(filt["jobs_baseline"].apply(num)>0,
+             (filt["jobs_actual_growth"].apply(num)/filt["jobs_baseline"].apply(num))*100, 0).mean()
+)
+
+kpi_card(k1, "TOTAL COMPANY", f"{total_company:,}")
+kpi_card(k2, "BASELINES<br/><span style='font-size:11px;color:#b9c7e6'>SALES</span>",
+         f"RM{base_sales:,.0f}<br/><span style='font-size:11px;color:#b9c7e6'>JOBS {base_jobs:,}</span>")
+kpi_card(k3, "TOTAL GROWTH SALE", f"RM{total_growth_sale:,.0f}")
+kpi_card(k4, "AVERAGE GROWTH SALE %", f"{avg_growth_pct:.0f}%")
+kpi_card(k5, "TOTAL NEW JOBS CREATION", f"{total_new_jobs:,}")
+kpi_card(k6, "AVERAGE JOB CREATION %", f"{avg_job_pct:.0f}%")
+
+st.markdown("<br/>", unsafe_allow_html=True)
+
+# ===============  CHART HELPERS  ===============
+def grouped_bar(df, x, series, names, title):
+    fig = go.Figure()
+    for col, nm, colr in series:
+        fig.add_trace(go.Bar(x=df[x], y=df[col], name=nm, marker_color=colr))
+    fig.update_layout(
+        barmode="group", height=340, margin=dict(l=10,r=10,t=40,b=10),
+        plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
+        font=dict(color=TEXT, size=12), title=dict(text=title, x=0.02,y=0.98,font=dict(size=14))
     )
-    if not rev_state.empty:
-        fig1 = px.bar(rev_state, x="state", y="revenue", title="Revenue by State (Actual 2024; fallback Baseline)")
-        cc1.plotly_chart(fig1, width="stretch")
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(gridcolor="rgba(255,255,255,.08)")
+    return fig
 
-    # Jobs by State
-    jobs_state = (
-        fdf.assign(jobs=fdf["actualJobCreation"].map(_to_num))
-        .groupby("state", as_index=False)["jobs"].sum()
-        .sort_values("jobs", ascending=False)
+def donut(labels, values, title):
+    fig = go.Figure(go.Pie(labels=labels, values=values, hole=0.58,
+                           textinfo="value+percent", sort=False))
+    fig.update_traces(
+        marker=dict(line=dict(color=PANEL_BG, width=2)),
+        textfont=dict(size=12), hovertemplate="%{label}: %{value} (%{percent})<extra></extra>"
     )
-    if not jobs_state.empty:
-        fig2 = px.bar(jobs_state, x="state", y="jobs", title="Job Creation by State (2024)")
-        cc2.plotly_chart(fig2, width="stretch")
-
-cc3, cc4, cc5 = st.columns(3)
-
-# Industry distribution (company counts)
-if not fdf.empty and "industry" in fdf:
-    ind_count = fdf.groupby("industry", as_index=False).size().rename(columns={"size": "companies"})
-    if not ind_count.empty:
-        fig3 = px.pie(ind_count, names="industry", values="companies", title="Industry Distribution")
-        cc3.plotly_chart(fig3, width="stretch")
-
-# State distribution (company counts)
-if not fdf.empty and "state" in fdf:
-    st_count = fdf.groupby("state", as_index=False).size().rename(columns={"size": "companies"})
-    if not st_count.empty:
-        fig4 = px.pie(st_count, names="state", values="companies", title="State Distribution")
-        cc4.plotly_chart(fig4, width="stretch")
-
-# Achievements donut (Sales + Jobs)
-if not fdf.empty:
-    sales_ach = int(fdf["salesAchieved"].sum())
-    sales_not = int(len(fdf) - sales_ach)
-    jobs_ach = int(fdf["jobsAchieved"].sum())
-    jobs_not = int(len(fdf) - jobs_ach)
-
-    ach_df = pd.DataFrame(
-        {"Metric": ["Sales Achieved", "Sales Not", "Jobs Achieved", "Jobs Not"],
-         "Count": [sales_ach, sales_not, jobs_ach, jobs_not]}
+    fig.update_layout(
+        height=320, margin=dict(l=10,r=10,t=40,b=10),
+        plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
+        font=dict(color=TEXT), title=dict(text=title, x=0.5,y=0.98,font=dict(size=14))
     )
-    fig5 = px.pie(ach_df, names="Metric", values="Count", hole=0.5, title="Achievements (Sales / Jobs)")
-    cc5.plotly_chart(fig5, width="stretch")
+    return fig
 
-st.markdown("---")
+# ===============  ROW: Sales by State / Industry / Group  ===============
+cA1, cA2, cA3 = st.columns([1.3,1.3,1.1])
 
-# =========================
-# Search + pagination table
-# =========================
-st.subheader("📋 Company Data Table")
+if not filt.empty:
+    # by STATE
+    by_state = (
+        filt.groupby("state", as_index=False)
+            .agg(baseline=("rev_baseline", lambda s: sum(map(num, s))),
+                 projection=("rev_projection", lambda s: sum(map(num, s))),
+                 actual=("rev_actual", lambda s: sum(map(num, s)))))
+    fig_state = grouped_bar(
+        by_state, "state",
+        [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
+        ["BASELINE","PROJECTION","ACTUAL"],
+        "SALES BY STATE"
+    )
+    cA1.plotly_chart(fig_state, use_container_width=True)
 
-if "table_page" not in st.session_state:
-    st.session_state.table_page = 1
+    # by INDUSTRY
+    by_ind = (
+        filt.groupby("industry", as_index=False)
+            .agg(baseline=("rev_baseline", lambda s: sum(map(num, s))),
+                 projection=("rev_projection", lambda s: sum(map(num, s))),
+                 actual=("rev_actual", lambda s: sum(map(num, s)))))
+    fig_ind = grouped_bar(
+        by_ind, "industry",
+        [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
+        ["BASELINE","PROJECTION","ACTUAL"],
+        "SALES BY INDUSTRY"
+    )
+    cA2.plotly_chart(fig_ind, use_container_width=True)
 
-q = st.text_input("Search (company / any field)", placeholder="Type and press Enter…")
-if q:
-    qlow = q.strip().lower()
-    mask = fdf.apply(lambda r: any(qlow in str(v).lower() for v in r.values), axis=1)
-    tdf = fdf[mask].copy()
-else:
-    tdf = fdf.copy()
+    # by GROUP
+    by_grp = (
+        filt.groupby("group", as_index=False)
+            .agg(baseline=("rev_baseline", lambda s: sum(map(num, s))),
+                 projection=("rev_projection", lambda s: sum(map(num, s))),
+                 actual=("rev_actual", lambda s: sum(map(num, s)))))
+    fig_grp = grouped_bar(
+        by_grp, "group",
+        [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
+        ["BASELINE","PROJECTION","ACTUAL"],
+        "SALES BY GROUP"
+    )
+    cA3.plotly_chart(fig_grp, use_container_width=True)
 
-total_rows = len(tdf)
-max_page = max(1, (total_rows + page_size - 1) // page_size)
-st.session_state.table_page = min(st.session_state.table_page, max_page)
+# ===============  ROW: Sales Growth Status + Job Creation by State / Group  ===============
+cB1, cB2, cB3 = st.columns([1.0,1.3,1.3])
 
-col_prev, col_info, col_next = st.columns([1, 3, 1])
-with col_prev:
-    if st.button("◀ Previous", use_container_width=True) and st.session_state.table_page > 1:
-        st.session_state.table_page -= 1
-with col_info:
-    st.write(f"Page **{st.session_state.table_page}** of **{max_page}** — Showing **{total_rows}** rows")
-with col_next:
-    if st.button("Next ▶", use_container_width=True) and st.session_state.table_page < max_page:
-        st.session_state.table_page += 1
+# Sales Growth Status donut (Achieved / New Company / Not Achieved)
+achieved = (filt["sale_status"].str.lower().str.contains("achiev")).sum()
+not_achieved = (filt["sale_status"].str.lower().str.contains("not")).sum()
+new_company = max(total_company - achieved - not_achieved, 0)
+fig_growth = donut(["Achieved","Not Achieved","New Company"], [achieved, not_achieved, new_company], "SALES GROWTH STATUS")
+cB1.plotly_chart(fig_growth, use_container_width=True)
 
-start = (st.session_state.table_page - 1) * page_size
-end = start + page_size
+# Job creation by STATE
+by_state_jobs = (
+    filt.groupby("state", as_index=False)
+        .agg(baseline=("jobs_baseline", lambda s: sum(map(num, s))),
+             projection=("jobs_projection", lambda s: sum(map(num, s))),
+             actual=("jobs_actual_growth", lambda s: sum(map(num, s)))))
+fig_jobs_state = grouped_bar(
+    by_state_jobs, "state",
+    [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
+    ["BASELINE","PROJECTION","ACTUAL"],
+    "JOB CREATION BY STATE"
+)
+cB2.plotly_chart(fig_jobs_state, use_container_width=True)
 
-show_cols = [
-    "companyName", "state", "industry", "businessType",
-    "baselineRevenue2024", "actual2024", "actualJobCreation", "status"
-]
-present_cols = [c for c in show_cols if c in tdf.columns]
-display_df = tdf[present_cols].copy()
-display_df.rename(columns={
-    "companyName": "Company",
-    "state": "State",
-    "industry": "Industry",
-    "businessType": "Type",
-    "baselineRevenue2024": "Baseline Revenue 2024 (RM)",
-    "actual2024": "Actual 2024 (RM)",
-    "actualJobCreation": "Jobs Created 2024",
-    "status": "Status",
-}, inplace=True)
+# Job creation by GROUP
+by_grp_jobs = (
+    filt.groupby("group", as_index=False)
+        .agg(baseline=("jobs_baseline", lambda s: sum(map(num, s))),
+             projection=("jobs_projection", lambda s: sum(map(num, s))),
+             actual=("jobs_actual_growth", lambda s: sum(map(num, s)))))
+fig_jobs_grp = grouped_bar(
+    by_grp_jobs, "group",
+    [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
+    ["BASELINE","PROJECTION","ACTUAL"],
+    "JOB CREATION BY GROUP"
+)
+cB3.plotly_chart(fig_jobs_grp, use_container_width=True)
 
-st.dataframe(display_df.iloc[start:end], use_container_width=True)
+# ===============  ROW: Jobs Growth Status donut + Overall performance by State (bars)  ===============
+cC1, cC2 = st.columns([1.0,2.0])
 
-# =========================
-# Downloads for filtered table
-# =========================
-st.markdown("#### ⬇️ Export filtered data")
-csv_bytes = tdf.to_csv(index=False).encode("utf-8")
-st.download_button("Export CSV", data=csv_bytes, file_name="dashboard_filtered.csv", mime="text/csv")
+# Jobs Growth Status donut
+job_ach = int((filt["jobs_actual_growth"].apply(num) > 0).sum())
+job_not = int(total_company - job_ach)
+fig_job_stat = donut(["ACHIEVED","NOT ACHIEVED"], [job_ach, job_not], "JOBS GROWTH STATUS")
+cC1.plotly_chart(fig_job_stat, use_container_width=True)
+
+# Overall performance by State — bars (count of companies with positive growth)
+perf_state = (
+    filt.assign(pos=(filt["growth_pct"]>0).astype(int))
+        .groupby("state", as_index=False)
+        .agg(positive=("pos","sum"))
+        .sort_values("positive", ascending=False)
+)
+if not perf_state.empty:
+    fig_perf = px.bar(perf_state, x="state", y="positive", title="OVERALL PERFORMANCE BY STATE")
+    fig_perf.update_layout(
+        height=340, margin=dict(l=10,r=10,t=40,b=10), plot_bgcolor=PANEL_BG, paper_bgcolor=PANEL_BG,
+        font=dict(color=TEXT)
+    )
+    fig_perf.update_xaxes(showgrid=False); fig_perf.update_yaxes(gridcolor="rgba(255,255,255,.08)")
+    cC2.plotly_chart(fig_perf, use_container_width=True)
+
+# ===============  RIGHT RAIL: Top Ranked / Highest Growth  ===============
+st.markdown("<br/>", unsafe_allow_html=True)
+r1, r2, r3 = st.columns([2.2, 2.2, 1.2])
+
+with r3:
+    st.markdown('<div class="right-panel">', unsafe_allow_html=True)
+    st.markdown("**TOP RANKED COMPANIES**")
+    top_growth = filt.assign(g=(filt["rev_actual"].apply(num) - filt["rev_baseline"].apply(num))) \
+                     .sort_values("g", ascending=False).head(5)
+    for _, r in top_growth.iterrows():
+        st.write(f"- {r['company']}")
+
+    st.markdown("---")
+    st.markdown("**HIGHEST GROWTH SALE**")
+    if not top_growth.empty:
+        best = top_growth.iloc[0]
+        pct = 0
+        if num(best["rev_baseline"])>0:
+            pct = (num(best["rev_actual"])-num(best["rev_baseline"])) / num(best["rev_baseline"]) * 100
+        st.write(f"{best['company']}")
+        st.markdown(f"<div class='headline' style='font-size:32px;color:{ACCENT};'>{pct:.0f}%</div>", unsafe_allow_html=True)
+        st.caption("vs baseline")
+
+    st.markdown("---")
+    st.markdown("**HIGHEST SALES**")
+    top_sales = filt.sort_values("rev_actual", key=lambda s: s.apply(num), ascending=False).head(1)
+    if not top_sales.empty:
+        ts = top_sales.iloc[0]
+        st.write(f"{ts['company']}")
+        st.write(f"RM {num(ts['rev_actual']):,.2f}")
+
+    st.markdown("---")
+    st.markdown("**HIGHEST GROWTH JOB CREATION**")
+    top_job = filt.sort_values("jobs_actual_growth", key=lambda s: s.apply(num), ascending=False).head(1)
+    if not top_job.empty:
+        tj = top_job.iloc[0]
+        base = max(num(tj['jobs_baseline']),1)
+        pctj = num(tj["jobs_actual_growth"])/base*100
+        st.write(f"{tj['company']}")
+        st.markdown(f"<div class='headline' style='font-size:28px;color:{ACCENT};'>{pctj:.0f}%</div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("**HIGHEST NEW JOB CREATION**")
+    top_new = filt.sort_values("jobs_actual_growth", key=lambda s: s.apply(num), ascending=False).head(1)
+    if not top_new.empty:
+        tn = top_new.iloc[0]
+        st.write(f"{tn['company']}")
+        st.markdown(f"<div class='headline' style='font-size:28px;color:{ACCENT};'>{int(num(tn['jobs_actual_growth'])):,}</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===============  DATA PREVIEW  ===============
+st.markdown("<br/>", unsafe_allow_html=True)
+st.markdown("#### 📋 Data Preview")
+show_cols = ["company","state","industry","group","rev_baseline","rev_projection","rev_actual","jobs_baseline","jobs_projection","jobs_actual_growth","growth_pct"]
+df_show = filt[show_cols].rename(columns={
+    "company":"COMPANY","state":"STATE","industry":"INDUSTRY","group":"GROUP",
+    "rev_baseline":"BASELINE RM","rev_projection":"PROJECTION RM","rev_actual":"ACTUAL RM",
+    "jobs_baseline":"BASE JOBS","jobs_projection":"PROJ JOBS","jobs_actual_growth":"ACTUAL NEW JOBS",
+    "growth_pct":"GROWTH %"
+})
+st.dataframe(df_show, hide_index=True, use_container_width=True)
+
+# ===============  EXPORTS  ===============
+cdown1, cdown2 = st.columns(2)
+csv_bytes = df_show.to_csv(index=False).encode("utf-8")
+cdown1.download_button("Export (CSV)", data=csv_bytes, file_name="nest_dashboard_filtered.csv", mime="text/csv", use_container_width=True)
 
 bio = io.BytesIO()
 with pd.ExcelWriter(bio, engine="openpyxl") as xw:
-    tdf.to_excel(xw, index=False, sheet_name="Filtered")
-st.download_button(
-    "Export Excel",
-    data=bio.getvalue(),
-    file_name="dashboard_filtered.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+    df_show.to_excel(xw, index=False, sheet_name="Filtered")
+cdown2.download_button("Export (Excel)", data=bio.getvalue(),
+                       file_name="nest_dashboard_filtered.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                       use_container_width=True)
