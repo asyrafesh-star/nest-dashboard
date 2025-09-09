@@ -21,6 +21,7 @@ ACCENT_GREEN = "#27ae60"
 ACCENT_BLUE = "#1f78ff"
 ACCENT_PURPLE = "#9b59b6"
 
+# IMPORTANT: escape all CSS braces as {{ }} inside f-strings
 st.markdown(
     f"""
     <style>
@@ -89,7 +90,7 @@ HEADER_MAP: Dict[str, List[str]] = {
     "jobs_baseline": ["BASELINE_MANPOWER_2024"],
     "jobs_projection": ["MANPOWER_2024_PROJECTION"],
     "jobs_update": ["MANPOWER_2024_UPDATE"],
-    "jobs_actual_growth": ["ACTUAL_GROWTH_JOB_CREATION_2024"],  # explicit growth
+    "jobs_actual_growth": ["ACTUAL_GROWTH_JOB_CREATION_2024"],
     # status / flags
     "sale_status": ["SELF_DECLARATION_2024", "SALE_STATUS"],
     "job_status": ["PERCENTAGE_JOB_CREATION_2024", "JOB_STATUS"],
@@ -174,7 +175,7 @@ else:
 norm = pd.DataFrame()
 for key, aliases in HEADER_MAP.items():
     col = pick_col(raw, aliases)
-    norm[key] = raw[col] if col else pd.NA
+    norm[key] = raw[col] if col is not None else pd.NA
 
 # ensure strings
 for c in ["company","state","industry","group","tc_member","sale_status"]:
@@ -187,8 +188,7 @@ for c in ["rev_baseline_prev","rev_baseline","rev_projection","rev_actual",
         norm[c] = norm[c].apply(num)
 
 # derive actual jobs if not explicit
-if norm["jobs_actual_growth"].fillna(0).sum() == 0:
-    # try delta update-baseline
+if (norm["jobs_actual_growth"].fillna(0).sum() == 0) and ("jobs_update" in norm) and ("jobs_baseline" in norm):
     norm["jobs_actual_growth"] = (norm["jobs_update"].apply(num) - norm["jobs_baseline"].apply(num)).clip(lower=0)
 
 # growth %
@@ -224,12 +224,15 @@ k1, k2, k3, k4, k5, k6 = st.columns([1.1,1.6,1.6,1.6,1.4,1.6])
 
 def kpi_card(container, label, value_html):
     with container:
-        st.markdown(f"""
-        <div class="dash-card kpi-stack">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-num">{value_html}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="dash-card kpi-stack">
+                <div class="kpi-label">{label}</div>
+                <div class="kpi-num">{value_html}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 total_company = len(filt)
 base_sales = float(filt["rev_baseline"].apply(num).sum())
@@ -253,7 +256,7 @@ kpi_card(k6, "AVERAGE JOB CREATION %", f"{avg_job_pct:.0f}%")
 st.markdown("<br/>", unsafe_allow_html=True)
 
 # ===============  CHART HELPERS  ===============
-def grouped_bar(df, x, series, names, title):
+def grouped_bar(df, x, series, title):
     fig = go.Figure()
     for col, nm, colr in series:
         fig.add_trace(go.Bar(x=df[x], y=df[col], name=nm, marker_color=colr))
@@ -293,7 +296,6 @@ if not filt.empty:
     fig_state = grouped_bar(
         by_state, "state",
         [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
-        ["BASELINE","PROJECTION","ACTUAL"],
         "SALES BY STATE"
     )
     cA1.plotly_chart(fig_state, use_container_width=True)
@@ -307,7 +309,6 @@ if not filt.empty:
     fig_ind = grouped_bar(
         by_ind, "industry",
         [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
-        ["BASELINE","PROJECTION","ACTUAL"],
         "SALES BY INDUSTRY"
     )
     cA2.plotly_chart(fig_ind, use_container_width=True)
@@ -321,7 +322,6 @@ if not filt.empty:
     fig_grp = grouped_bar(
         by_grp, "group",
         [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
-        ["BASELINE","PROJECTION","ACTUAL"],
         "SALES BY GROUP"
     )
     cA3.plotly_chart(fig_grp, use_container_width=True)
@@ -345,7 +345,6 @@ by_state_jobs = (
 fig_jobs_state = grouped_bar(
     by_state_jobs, "state",
     [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
-    ["BASELINE","PROJECTION","ACTUAL"],
     "JOB CREATION BY STATE"
 )
 cB2.plotly_chart(fig_jobs_state, use_container_width=True)
@@ -359,7 +358,6 @@ by_grp_jobs = (
 fig_jobs_grp = grouped_bar(
     by_grp_jobs, "group",
     [("baseline","BASELINE", ACCENT_BLUE), ("projection","PROJECTION", ACCENT_PURPLE), ("actual","ACTUAL", ACCENT_RED)],
-    ["BASELINE","PROJECTION","ACTUAL"],
     "JOB CREATION BY GROUP"
 )
 cB3.plotly_chart(fig_jobs_grp, use_container_width=True)
@@ -421,6 +419,7 @@ with r3:
         st.write(f"RM {num(ts['rev_actual']):,.2f}")
 
     st.markdown("---")
+    st.markmarkdown = st.markdown  # alias to avoid shadowing
     st.markdown("**HIGHEST GROWTH JOB CREATION**")
     top_job = filt.sort_values("jobs_actual_growth", key=lambda s: s.apply(num), ascending=False).head(1)
     if not top_job.empty:
