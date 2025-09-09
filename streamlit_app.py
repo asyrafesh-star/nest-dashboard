@@ -35,7 +35,7 @@ THEMES = {
         "PRIMARY_BG": "#f7f9fc",
         "PANEL_BG":   "#ffffff",
         "CARD_BG":    "#ffffff",
-        "TEXT":       "#0f172a",
+        "TEXT":       "#000000",  # Changed to pure black
         "ACCENT":     "#7c3aed",
         "ACCENT_RED": "#dc2626",
         "ACCENT_GREEN": "#16a34a",
@@ -78,9 +78,9 @@ COLORFUL_GRADS = [
 # Global CSS (brace-escaped)
 st.markdown(
     f"""
-    covered by a previous artifact, so I'm reusing its ID.
     <style>
     .stApp {{ background-color: {PRIMARY_BG}; }}
+    .stSidebar {{ background-color: { '#ffffff' if theme_choice == 'Light' else PRIMARY_BG }; }}
     .block-container {{ padding-top: .8rem; padding-bottom: 2rem; }}
     h1,h2,h3,h4,h5,p,span,div,li,th,td,label {{ color: {TEXT} !important; }}
     .dash-card {{
@@ -88,7 +88,7 @@ st.markdown(
         border: 1px solid {BORDER_COLOR};
         border-radius: 12px; padding: 14px 16px; box-shadow: {SHADOW};
     }}
-    .kpi-num {{ font-weight: 800; font-size: 36px; color: {ACCENT if theme_choice == 'Dark' else '#0f172a'}; }}
+    .kpi-num {{ font-weight: 800; font-size: 36px; color: {ACCENT if theme_choice == 'Dark' else '#000000'}; }}
     .kpi-label {{ opacity:.9; font-size: 12px; letter-spacing: .08em; color: {TEXT} !important; }}
     .kpi-stack {{ text-align:center; color: {TEXT} !important; }}
     .headline {{ font-size:28px; font-weight:900; letter-spacing:.04em; }}
@@ -103,8 +103,8 @@ st.markdown(
         border: 1px solid {BORDER_COLOR}; box-shadow: {SHADOW}; height:100%;
     }}
     .highlight-title {{ font-size:12px; letter-spacing:.08em; opacity:.9; }}
-    .highlight-big   {{ font-size:28px; font-weight:900; }}
-    .highlight-sub   {{ font-size:12px; opacity:.8; }}
+    .highlight-big {{ font-size:28px; font-weight:900; }}
+    .highlight-sub {{ font-size:12px; opacity:.8; }}
     .bullets li {{ margin:2px 0; }}
     </style>
     """,
@@ -710,4 +710,3 @@ cdown2.download_button("Export (Excel)", data=bio.getvalue(),
                        file_name="nest_dashboard_filtered.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        use_container_width=True)
-
