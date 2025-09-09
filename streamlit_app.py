@@ -35,7 +35,7 @@ THEMES = {
         "PRIMARY_BG": "#f7f9fc",
         "PANEL_BG":   "#ffffff",
         "CARD_BG":    "#ffffff",
-        "TEXT":       "#000000",
+        "TEXT":       "#eaf2ff",
         "ACCENT":     "#7c3aed",
         "ACCENT_RED": "#dc2626",
         "ACCENT_GREEN": "#16a34a",
@@ -769,3 +769,4 @@ cdown2.download_button("Export (Excel)", data=bio.getvalue(),
                        file_name="nest_dashboard_filtered.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        use_container_width=True)
+
