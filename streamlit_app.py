@@ -67,6 +67,15 @@ GRID_COLOR   = T["grid_color"]
 BORDER_COLOR = T["border_color"]
 SHADOW       = T["shadow"]
 
+# Colorful gradients used when Light theme is active
+COLORFUL_GRADS = [
+    "linear-gradient(135deg,#6366f1,#a78bfa)",  # indigo → purple
+    "linear-gradient(135deg,#f59e0b,#fb7185)",  # amber → rose
+    "linear-gradient(135deg,#06b6d4,#22c55e)",  # cyan → green
+    "linear-gradient(135deg,#ef4444,#f97316)",  # red → orange
+    "linear-gradient(135deg,#10b981,#3b82f6)",  # emerald → blue
+]
+
 # Global CSS (brace-escaped)
 st.markdown(
     f"""
@@ -89,6 +98,14 @@ st.markdown(
         font-size:11px; border:1px solid {BORDER_COLOR};
         color:{TEXT};
     }}
+    .highlight-card {{
+        border-radius: 12px; padding: 14px 16px;
+        border: 1px solid {BORDER_COLOR}; box-shadow: {SHADOW}; height:100%;
+    }}
+    .highlight-title {{ font-size:12px; letter-spacing:.08em; opacity:.9; }}
+    .highlight-big   {{ font-size:28px; font-weight:900; }}
+    .highlight-sub   {{ font-size:12px; opacity:.8; }}
+    .bullets li {{ margin:2px 0; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -426,62 +443,11 @@ if not perf_state.empty:
     fig_perf.update_xaxes(showgrid=False); fig_perf.update_yaxes(gridcolor=GRID_COLOR)
     cC2.plotly_chart(fig_perf, use_container_width=True)
 
-# --------------------------------------------------------------------------------------
-# Right rail (Top-ranked style)
-# --------------------------------------------------------------------------------------
 st.markdown("<br/>", unsafe_allow_html=True)
-_, _, rpanel = st.columns([2.2, 2.2, 1.2])
-with rpanel:
-    st.markdown('<div class="right-panel">', unsafe_allow_html=True)
-    st.markdown("**TOP RANKED COMPANIES**")
-    top_growth = filt.assign(g=(filt["rev_actual"].apply(num) - filt["rev_baseline"].apply(num))) \
-                     .sort_values("g", ascending=False).head(5)
-    for _, r in top_growth.iterrows():
-        st.write(f"- {r['company']}")
-
-    st.markdown("---")
-    st.markdown("**HIGHEST GROWTH SALE**")
-    if not top_growth.empty:
-        best = top_growth.iloc[0]
-        pct = 0
-        if num(best["rev_baseline"])>0:
-            pct = (num(best["rev_actual"])-num(best["rev_baseline"])) / num(best["rev_baseline"]) * 100
-        st.write(f"{best['company']}")
-        st.markdown(f"<div class='headline' style='font-size:32px;color:{ACCENT};'>{pct:.0f}%</div>", unsafe_allow_html=True)
-        st.caption("vs baseline")
-
-    st.markdown("---")
-    st.markdown("**HIGHEST SALES**")
-    top_sales = filt.sort_values("rev_actual", key=lambda s: s.apply(num), ascending=False).head(1)
-    if not top_sales.empty:
-        ts = top_sales.iloc[0]
-        st.write(f"{ts['company']}")
-        st.write(f"RM {num(ts['rev_actual']):,.2f}")
-
-    st.markdown("---")
-    st.markdown("**HIGHEST GROWTH JOB CREATION**")
-    top_job = filt.sort_values("jobs_actual_growth", key=lambda s: s.apply(num), ascending=False).head(1)
-    if not top_job.empty:
-        tj = top_job.iloc[0]
-        base = max(num(tj['jobs_baseline']),1)
-        pctj = num(tj["jobs_actual_growth"])/base*100
-        st.write(f"{tj['company']}")
-        st.markdown(f"<div class='headline' style='font-size:28px;color:{ACCENT};'>{pctj:.0f}%</div>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("**HIGHEST NEW JOB CREATION**")
-    top_new = filt.sort_values("jobs_actual_growth", key=lambda s: s.apply(num), ascending=False).head(1)
-    if not top_new.empty:
-        tn = top_new.iloc[0]
-        st.write(f"{tn['company']}")
-        st.markdown(f"<div class='headline' style='font-size:28px;color:{ACCENT};'>{int(num(tn['jobs_actual_growth'])):,}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------------------
 # UPGRADE PACK: Projection pies, stacked performance, Top-5 lists
 # --------------------------------------------------------------------------------------
-st.markdown("<br/>", unsafe_allow_html=True)
-
 def stacked_perf(df: pd.DataFrame, by: str, title: str):
     tmp = (
         df.assign(
@@ -580,6 +546,141 @@ top5_jobs = jdf.sort_values("NEW JOBS", ascending=False).head(5).rename(columns=
 with tC:
     st.markdown("**TOP 5 GROWTH JOBS**")
     st.dataframe(top5_jobs[["COMPANY","STATE","NEW JOBS"]], hide_index=True, use_container_width=True)
+
+# --------------------------------------------------------------------------------------
+# Bottom Highlights (Top Ranked / Highest …) — horizontal row
+# --------------------------------------------------------------------------------------
+def compute_highlights(df: pd.DataFrame):
+    if df.empty:
+        return dict(
+            top_ranked=[],
+            high_growth_sale=("—", 0.0),
+            high_sales=("—", 0.0),
+            high_job_growth=("—", 0.0),
+            high_new_jobs=("—", 0),
+        )
+
+    tmp_growth = df.assign(g=(df["rev_actual"].apply(num) - df["rev_baseline"].apply(num)))
+    top_ranked = tmp_growth.sort_values("g", ascending=False)["company"].dropna().astype(str).head(5).tolist()
+
+    pct_df = df.copy()
+    pct_df["pct"] = np.where(
+        pct_df["rev_baseline"].apply(num) > 0,
+        (pct_df["rev_actual"].apply(num) - pct_df["rev_baseline"].apply(num)) / pct_df["rev_baseline"].apply(num) * 100,
+        -np.inf,
+    )
+    high_growth_row = pct_df.sort_values("pct", ascending=False).head(1)
+    high_growth_sale = (str(high_growth_row.iloc[0]["company"]), float(high_growth_row.iloc[0]["pct"])) if not high_growth_row.empty else ("—", 0.0)
+
+    hs = df.sort_values("rev_actual", key=lambda s: s.apply(num), ascending=False).head(1)
+    high_sales = (str(hs.iloc[0]["company"]), float(num(hs.iloc[0]["rev_actual"]))) if not hs.empty else ("—", 0.0)
+
+    jg = df.copy()
+    jg["job_pct"] = np.where(
+        jg["jobs_baseline"].apply(num) > 0,
+        jg["jobs_actual_growth"].apply(num) / np.maximum(jg["jobs_baseline"].apply(num), 1) * 100,
+        -np.inf,
+    )
+    jg_row = jg.sort_values("job_pct", ascending=False).head(1)
+    high_job_growth = (str(jg_row.iloc[0]["company"]), float(jg_row.iloc[0]["job_pct"])) if not jg_row.empty else ("—", 0.0)
+
+    nj = df.sort_values("jobs_actual_growth", key=lambda s: s.apply(num), ascending=False).head(1)
+    high_new_jobs = (str(nj.iloc[0]["company"]), int(num(nj.iloc[0]["jobs_actual_growth"]))) if not nj.empty else ("—", 0)
+
+    return dict(
+        top_ranked=top_ranked[:5],
+        high_growth_sale=high_growth_sale,
+        high_sales=high_sales,
+        high_job_growth=high_job_growth,
+        high_new_jobs=high_new_jobs,
+    )
+
+H = compute_highlights(filt)
+st.markdown("<br/>", unsafe_allow_html=True)
+st.markdown("### 🔝 Highlights")
+
+cols = st.columns(5)
+
+def card_bg(idx: int):
+    if theme_choice == "Light":
+        return COLORFUL_GRADS[idx % len(COLORFUL_GRADS)]
+    return PANEL_BG
+
+with cols[0]:
+    bg = card_bg(0)
+    st.markdown(
+        f"""
+        <div class="highlight-card" style="background:{bg}">
+            <div class="highlight-title">TOP RANKED COMPANIES</div>
+            <div style="height:8px"></div>
+            <ul class="bullets">
+                {"".join([f"<li><b>{name}</b></li>" for name in H["top_ranked"]])}
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with cols[1]:
+    bg = card_bg(1)
+    comp, pct = H["high_growth_sale"]
+    st.markdown(
+        f"""
+        <div class="highlight-card" style="background:{bg}">
+            <div class="highlight-title">HIGHEST GROWTH SALE</div>
+            <div style="height:6px"></div>
+            <div><b>{comp}</b></div>
+            <div class="highlight-big">{pct:.0f}%</div>
+            <div class="highlight-sub">vs baseline</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with cols[2]:
+    bg = card_bg(2)
+    comp, amt = H["high_sales"]
+    st.markdown(
+        f"""
+        <div class="highlight-card" style="background:{bg}">
+            <div class="highlight-title">HIGHEST SALES</div>
+            <div style="height:6px"></div>
+            <div><b>{comp}</b></div>
+            <div class="highlight-big">RM {amt:,.2f}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with cols[3]:
+    bg = card_bg(3)
+    comp, pct = H["high_job_growth"]
+    st.markdown(
+        f"""
+        <div class="highlight-card" style="background:{bg}">
+            <div class="highlight-title">HIGHEST GROWTH JOB CREATION</div>
+            <div style="height:6px"></div>
+            <div><b>{comp}</b></div>
+            <div class="highlight-big">{pct:.0f}%</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with cols[4]:
+    bg = card_bg(4)
+    comp, jobs = H["high_new_jobs"]
+    st.markdown(
+        f"""
+        <div class="highlight-card" style="background:{bg}">
+            <div class="highlight-title">HIGHEST NEW JOB CREATION</div>
+            <div style="height:6px"></div>
+            <div><b>{comp}</b></div>
+            <div class="highlight-big">{jobs:,}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # --------------------------------------------------------------------------------------
 # Data preview & exports
