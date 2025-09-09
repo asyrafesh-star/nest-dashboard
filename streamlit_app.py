@@ -189,10 +189,14 @@ with st.sidebar:
             "SELF_DECLARATION_2024","PERCENTAGE_JOB_CREATION_2024"
         ]
         sample = [
-            ["Tech Solutions","SELANGOR","SERVICES","3A","DATIN SHARIDEE",
-             1800000,2300000,2500000,2650000,40,45,48,8,"Achieved",25],
-            ["BestMart","PULAU PINANG","MANUFACTURING","2","EN FAUZAN",
-             1200000,1500000,1650000,1600000,20,25,26,6,"Not Achieved",10],
+            ["Tech Solutions","SELANGOR","SERVICES","3A","DATIN SHARIDEE",1800000,2300000,2500000,2650000,40,45,48,8,"Achieved",25],
+            ["BestMart","PULAU PINANG","MANUFACTURING","2","EN FAUZAN",1200000,1500000,1650000,1600000,20,25,26,6,"Not Achieved",10],
+            ["Swift Bridge","PERAK","AGRIBUSINESS","1","PN SURIALA", 800000,1100000,1250000,1490000,10,13,17,9,"Achieved",40],
+            ["HealthCare Ideal","PULAU PINANG","SERVICES","3A","EM FIRDAUS",2000000,2600000,3000000,6240000,60,75,119,59,"Achieved",65],
+            ["Green Energy","KELANTAN","ENERGY","1","EN ZULKIFLI",900000,1200000,1350000,1400000,15,18,20,5,"Achieved",20],
+            ["Blue Logistics","JOHOR","LOGISTICS","2","PN NORLINA",1500000,1800000,2000000,2100000,30,35,38,8,"Not Achieved",15],
+            # Add more sample data to demonstrate capacity for 300 companies
+            # (Truncated for brevity; extend as needed)
         ]
         bio = io.BytesIO()
         pd.DataFrame(sample, columns=cols).to_excel(bio, index=False, sheet_name="NEST Data")
@@ -218,6 +222,10 @@ else:
             ["BestMart","PULAU PINANG","MANUFACTURING","2","EN FAUZAN",1200000,1500000,1650000,1600000,20,25,26,6,"Not Achieved",10],
             ["Swift Bridge","PERAK","AGRIBUSINESS","1","PN SURIALA", 800000,1100000,1250000,1490000,10,13,17,9,"Achieved",40],
             ["HealthCare Ideal","PULAU PINANG","SERVICES","3A","EM FIRDAUS",2000000,2600000,3000000,6240000,60,75,119,59,"Achieved",65],
+            ["Green Energy","KELANTAN","ENERGY","1","EN ZULKIFLI",900000,1200000,1350000,1400000,15,18,20,5,"Achieved",20],
+            ["Blue Logistics","JOHOR","LOGISTICS","2","PN NORLINA",1500000,1800000,2000000,2100000,30,35,38,8,"Not Achieved",15],
+            # Expanded demo data to simulate more companies (up to 300 can be added)
+            # (Truncated for brevity; extend as needed with unique company names and data)
         ],
         columns=[
             "COMPANY_NAME","STATE","INDUSTRY","GROUP","TC_MEMBER",
