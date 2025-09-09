@@ -49,7 +49,7 @@ THEMES = {
 }
 
 with st.sidebar:
-    theme_choice = st.selectbox("🎨 Theme", list(TheMES.keys()), index=0)
+    theme_choice = st.selectbox("🎨 Theme", list(THEMES.keys()), index=0)
 
 T = THEMES[theme_choice]
 PRIMARY_BG   = T["PRIMARY_BG"]
@@ -710,3 +710,4 @@ cdown2.download_button("Export (Excel)", data=bio.getvalue(),
                        file_name="nest_dashboard_filtered.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        use_container_width=True)
+
