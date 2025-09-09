@@ -46,8 +46,9 @@ st.markdown(
         background: rgba(255,255,255,.08); padding:4px 8px; border-radius: 999px;
         font-size: 11px; color:#d7e3ff; border:1px solid rgba(255,255,255,.1);
     }}
-    .chip-ok {{ background: rgba(39,174,96,.15); color:#8ff3ba; border-color: rgba(39,174,96,.35);} }
-    .chip-bad {{ background: rgba(231,76,60,.15); color:#ffb1a7; border-color: rgba(231,76,60,.35);} }
+    .chip-ok {{ background: rgba(39,174,96,.15); color:#8ff3ba; border-color: rgba(39,174,96,.35); }}
+    .chip-bad {{ background: rgba(231,76,60,.15); color:#ffb1a7; border-color: rgba(231,76,60,.35); }}
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -463,3 +464,4 @@ cdown2.download_button("Export (Excel)", data=bio.getvalue(),
                        file_name="nest_dashboard_filtered.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        use_container_width=True)
+
